@@ -661,6 +661,30 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 				}
 			}
 		})
+
+		It("Should consider ArgoCD Application as an orphaned and delete it, if application entry doesnt exists in DB.", func() {
+			defer dbQueries.CloseDatabase()
+			log := log.FromContext(ctx)
+
+			var argoApplications []appv1.Application
+			argoApplications = append(argoApplications, appv1.Application{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"databaseID": "test-my-application-1"}}})
+			argoApplications = append(argoApplications, appv1.Application{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"databaseID": "test-my-application-2"}}})
+			argoApplications = append(argoApplications, appv1.Application{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"databaseID": "test-my-application-3"}}})
+			argoApplications = append(argoApplications, appv1.Application{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"databaseID": "test-my-application-4"}}})
+			argoApplications = append(argoApplications, appv1.Application{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"databaseID": "test-my-application-5"}}})
+
+			processedApplicationIds := map[string]string{"test-my-application-3": "", "test-my-application-5": ""}
+
+			deletedArgoApplications := deleteOrphanedApplications(argoApplications, processedApplicationIds, ctx, reconciler.Client, log)
+
+			Expect(len(deletedArgoApplications)).To(Equal(3))
+
+			deletedApplicationIds := map[string]string{"test-my-application-1": "", "test-my-application-2": "", "test-my-application-4": ""}
+			for _, app := range deletedArgoApplications {
+				_, ok := deletedApplicationIds[app.Labels["databaseID"]]
+				Expect(ok).To(BeTrue())
+			}
+		})
 	})
 
 	Context("Testing for CompareApplications function.", func() {
