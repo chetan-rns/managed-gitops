@@ -1,0 +1,14 @@
+apiVersion: apis.kcp.dev/v1alpha1
+kind: APIBinding
+metadata:
+  name: gitopsrvc
+spec:
+  acceptedPermissionClaims:
+  - group: ""
+    resource: "secrets"
+  - group: ""
+    resource: "namespaces"
+  reference:
+    workspace:
+      path: root:rh-sso-15850190:users
+      exportName: gitopsrvc

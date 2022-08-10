@@ -45,7 +45,9 @@ type GitOpsDeploymentReconciler struct {
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 func (r *GitOpsDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = log.FromContext(ctx)
+	logr := log.FromContext(ctx)
+
+	logr.Info("RUNNING CONTROLLER", "clusterName", req.ClusterName, "Namespace", req.Namespace)
 
 	namespace := v1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
