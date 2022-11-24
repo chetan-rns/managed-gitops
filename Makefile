@@ -4,6 +4,7 @@ TAG ?= latest
 BASE_IMAGE ?= gitops-service
 USERNAME ?= redhat-appstudio
 IMG ?= quay.io/${USERNAME}/${BASE_IMAGE}:${TAG}
+APPLICATION_API_COMMIT ?= 54515964769fd6e41dd42e741f8e81ffcd61f3a8
 
 # Default values match the their respective deployments in staging/production environment for GitOps Service, otherwise the E2E will fail.
 ARGO_CD_NAMESPACE ?= gitops-service-argocd
@@ -102,15 +103,15 @@ test-cluster-agent: ## Run test for cluster-agent only
 ### --- a p p s t u d i o - c o n t r o l l e r --- ###
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 deploy-appstudio-controller-crd: ## Deploy appstudio-controller related CRDs
-	# appstudio-shared CRs
-	kubectl apply -f appstudio-shared/manifests/appstudio-shared-customresourcedefinitions.yaml
+	# application-api CRDs
+	kubectl apply -f https://raw.githubusercontent.com/redhat-appstudio/application-api/${APPLICATION_API_COMMIT}/manifests/application-api-customresourcedefinitions.yaml
 	# Application CR from AppStudio HAS
-	kubectl apply -f https://raw.githubusercontent.com/redhat-appstudio/application-service/7a1a14b575dc725a46ea2ab175692f464122f0f8/config/crd/bases/appstudio.redhat.com_applications.yaml
-	kubectl apply -f https://raw.githubusercontent.com/redhat-appstudio/application-service/7a1a14b575dc725a46ea2ab175692f464122f0f8/config/crd/bases/appstudio.redhat.com_components.yaml
+	kubectl apply -f https://raw.githubusercontent.com/redhat-appstudio/application-api/${APPLICATION_API_COMMIT}/config/crd/bases/appstudio.redhat.com_applications.yaml
+	kubectl apply -f https://raw.githubusercontent.com/redhat-appstudio/application-api/${APPLICATION_API_COMMIT}/config/crd/bases/appstudio.redhat.com_components.yaml
 
 undeploy-appstudio-controller-crd: ## Remove appstudio-controller related CRDs
-	kubectl delete -f https://raw.githubusercontent.com/redhat-appstudio/application-service/7a1a14b575dc725a46ea2ab175692f464122f0f8/config/crd/bases/appstudio.redhat.com_applications.yaml
-	kubectl delete -f https://raw.githubusercontent.com/redhat-appstudio/application-service/7a1a14b575dc725a46ea2ab175692f464122f0f8/config/crd/bases/appstudio.redhat.com_components.yaml
+	kubectl delete -f https://raw.githubusercontent.com/redhat-appstudio/application-api/${APPLICATION_API_COMMIT}/config/crd/bases/appstudio.redhat.com_applications.yaml
+	kubectl delete -f https://raw.githubusercontent.com/redhat-appstudio/application-api/${APPLICATION_API_COMMIT}/config/crd/bases/appstudio.redhat.com_components.yaml
 
 deploy-appstudio-controller-rbac: kustomize ## Deploy appstudio-controller related RBAC resouces
 	kubectl create namespace gitops 2> /dev/null || true
@@ -180,7 +181,6 @@ start: ## Start all the components, compile & run (ensure goreman is installed, 
 	$(GOBIN)/goreman start
 
 clean: ## remove the bin and vendor folders from each component
-	cd $(MAKEFILE_ROOT)/appstudio-shared && make clean
 	cd $(MAKEFILE_ROOT)/backend-shared && make clean
 	cd $(MAKEFILE_ROOT)/backend && make clean
 	cd $(MAKEFILE_ROOT)/cluster-agent && make clean
@@ -218,7 +218,6 @@ reset-db: ## Erase the current database, and reset it scratch; useful during dev
 	$(MAKEFILE_ROOT)/create-dev-env.sh
 
 vendor: ## Clone locally the dependencies - off-line
-	cd $(MAKEFILE_ROOT)/appstudio-shared && go mod vendor
 	cd $(MAKEFILE_ROOT)/backend-shared && go mod vendor
 	cd $(MAKEFILE_ROOT)/backend && go mod vendor
 	cd $(MAKEFILE_ROOT)/cluster-agent && go mod vendor
@@ -227,7 +226,6 @@ vendor: ## Clone locally the dependencies - off-line
 	cd $(MAKEFILE_ROOT)/utilities/db-migration && go mod vendor	
 
 tidy: ## Tidy all components
-	cd $(MAKEFILE_ROOT)/appstudio-shared && go mod tidy
 	cd $(MAKEFILE_ROOT)/backend-shared && go mod tidy
 	cd $(MAKEFILE_ROOT)/backend && go mod tidy 
 	cd $(MAKEFILE_ROOT)/cluster-agent && go mod tidy
@@ -236,7 +234,6 @@ tidy: ## Tidy all components
 	cd $(MAKEFILE_ROOT)/utilities/db-migration && go mod tidy
 	 
 fmt: ## Run 'go fmt' on all components
-	cd $(MAKEFILE_ROOT)/appstudio-shared && make fmt
 	cd $(MAKEFILE_ROOT)/backend-shared && make fmt
 	cd $(MAKEFILE_ROOT)/backend && make fmt
 	cd $(MAKEFILE_ROOT)/cluster-agent && make fmt
@@ -244,7 +241,6 @@ fmt: ## Run 'go fmt' on all components
 	cd $(MAKEFILE_ROOT)/utilities/db-migration && make fmt
 
 generate-manifests: ## Call the 'generate' and 'manifests' targets of every project
-	cd $(MAKEFILE_ROOT)/appstudio-shared && make generate manifests
 	cd $(MAKEFILE_ROOT)/backend-shared && make generate manifests
 	cd $(MAKEFILE_ROOT)/backend && make generate manifests
 	cd $(MAKEFILE_ROOT)/cluster-agent && make generate manifests
@@ -279,10 +275,10 @@ gen-kcp-api-appstudio-shared: ## Runs utilities/generate-kcp-api-appstudio-share
 kcp-test-local-e2e: ## Initiates a ckcp within openshift cluster and runs e2e test
 	cd $(MAKEFILE_ROOT)/kcp && ./ckcp/setup-ckcp-on-openshift.sh
 
-gen-kcp-api-all: gen-kcp-api-appstudio-shared gen-kcp-api-backend-shared ## Creates all the KCP API Resources for all comfig/crds
+gen-kcp-api-all: gen-kcp-api-backend-shared ## Creates all the KCP API Resources for all comfig/crds
 
 apply-kcp-api-all: ## Apply all APIExport to the cluster
-	$(MAKEFILE_ROOT)/utilities/create-apiexports.sh
+	$(MAKEFILE_ROOT)/utilities/create-apiexports.sh "${APPLICATION_API_COMMIT}"
 
 setup-e2e-kcp-virtual-workspace: ## Sets up the necessary KCP virtual workspaces
 	$(MAKEFILE_ROOT)/kcp/kcp-e2e/setup-ws-e2e.sh

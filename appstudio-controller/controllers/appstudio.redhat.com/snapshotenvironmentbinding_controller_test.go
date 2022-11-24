@@ -2,6 +2,8 @@ package appstudioredhatcom
 
 import (
 	"context"
+	"crypto/sha256"
+	"fmt"
 	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -13,7 +15,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	appstudiosharedv1 "github.com/redhat-appstudio/managed-gitops/appstudio-shared/apis/appstudio.redhat.com/v1alpha1"
+	appstudiosharedv1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
 	apibackend "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
 )
@@ -94,7 +96,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 					},
 				},
 				Status: appstudiosharedv1.SnapshotEnvironmentBindingStatus{
-					Components: []appstudiosharedv1.ComponentStatus{
+					Components: []appstudiosharedv1.BindingComponentStatus{
 						{
 							Name: "component-a",
 							GitOpsRepository: appstudiosharedv1.BindingComponentGitOpsRepository{
@@ -238,8 +240,42 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 				To(Equal(binding.Name + "-" + binding.Spec.Components[0].Name))
 		})
 
+		It("Should use short name with hash value for GitOpsDeployment, if combination of Binding name and Component name is still longer than 250 characters.", func() {
+			compName := strings.Repeat("abcde", 50)
+
+			// Update application name to exceed the limit
+			binding.Status.Components[0].Name = compName
+			request = newRequest(binding.Namespace, binding.Name)
+
+			// Create ApplicationSnapshotEnvironmentBinding CR in cluster.
+			err := bindingReconciler.Create(ctx, binding)
+			Expect(err).To(BeNil())
+
+			// Trigger Reconciler
+			_, err = bindingReconciler.Reconcile(ctx, request)
+			Expect(err).To(BeNil())
+
+			// Check status field after calling Reconciler
+			binding := &appstudiosharedv1.SnapshotEnvironmentBinding{}
+			err = bindingReconciler.Client.Get(ctx, request.NamespacedName, binding)
+
+			Expect(err).To(BeNil())
+			Expect(len(binding.Status.GitOpsDeployments)).NotTo(Equal(0))
+
+			// 180 (First 180 characters of combination of Binding name and Component name) + 1 ("-")+64 (length of hast value) = 245 (Total length)
+			Expect(len(binding.Status.GitOpsDeployments[0].GitOpsDeployment)).To(Equal(245))
+
+			// Get the short name with hash value.
+			hashValue := sha256.Sum256([]byte(binding.Name + "-" + binding.Spec.Application + "-" + binding.Spec.Environment + "-" + compName))
+			hashString := fmt.Sprintf("%x", hashValue)
+			expectedName := (binding.Name + "-" + compName)[0:180] + "-" + hashString
+
+			Expect(binding.Status.GitOpsDeployments[0].GitOpsDeployment).
+				To(Equal(expectedName))
+		})
+
 		It("Should not return error if Status.Components is not available in Binding object.", func() {
-			binding.Status.Components = []appstudiosharedv1.ComponentStatus{}
+			binding.Status.Components = []appstudiosharedv1.BindingComponentStatus{}
 			// Create SnapshotEnvironmentBinding CR in cluster.
 			err := bindingReconciler.Create(ctx, binding)
 			Expect(err).To(BeNil())
@@ -274,7 +310,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 
 			By("creating an SnapshotEnvironmentBinding with duplicate component names")
 
-			binding.Status.Components = []appstudiosharedv1.ComponentStatus{
+			binding.Status.Components = []appstudiosharedv1.BindingComponentStatus{
 				{
 					Name: "componentA",
 					GitOpsRepository: appstudiosharedv1.BindingComponentGitOpsRepository{

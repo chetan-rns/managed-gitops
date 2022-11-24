@@ -2,6 +2,7 @@
 
 set -o errexit
 set -o nounset
+set -ex
 
 SCRIPT_DIR="$(
   cd "$(dirname "$0")" >/dev/null
@@ -61,14 +62,14 @@ clone-and-setup-ckcp() {
     pushd "${TMP_DIR}"
     git clone https://github.com/openshift-pipelines/pipeline-service.git
     pushd pipeline-service
-    git checkout feb7a522e7e47af3670bde9a58ddef958e9bff1e
+    git checkout 0d0dda73efe3e053fb36fa39fb82b5866ada12cc
     cp "${SCRIPT_DIR}"/openshift_dev_setup.sh ./developer/ckcp/openshift_dev_setup.sh
     cp "${SCRIPT_DIR}"/config.yaml ./developer/ckcp/config.yaml
 
-    sed -i 's/\--resources deployments.apps,services,ingresses.networking.k8s.io,pipelines.tekton.dev,pipelineruns.tekton.dev,tasks.tekton.dev,runs.tekton.dev,networkpolicies.networking.k8s.io/\--resources deployments.apps,services,ingresses.networking.k8s.io,networkpolicies.networking.k8s.io,statefulsets.apps,routes.route.openshift.io/' ./operator/images/kcp-registrar/bin/register.sh
+    sed -i 's/\deployments.apps,services,ingresses.networking.k8s.io,networkpolicies.networking.k8s.io,pipelines.tekton.dev,pipelineruns.tekton.dev,tasks.tekton.dev,repositories.pipelinesascode.tekton.dev/\deployments.apps,services,ingresses.networking.k8s.io,networkpolicies.networking.k8s.io,statefulsets.apps,routes.route.openshift.io/' ./operator/images/kcp-registrar/content/bin/register.sh
     printf "\nUpdated the resources to sync as needed for gitops-service and ckcp to run...\n\n"
     
-    printf "Setting up ckcp in the cluster"
+    printf "Setting up ckcp in the cluster\n"
     ./developer/ckcp/openshift_dev_setup.sh
     popd
     popd

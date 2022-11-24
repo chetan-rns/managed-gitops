@@ -35,13 +35,15 @@ import (
 
 // Start a workspace event loop router go routine, which is responsible for handling API namespace events and
 // then passing them to the controller loop.
-func newWorkspaceEventLoopRouter(workspaceID string) WorkspaceEventLoopRouterStruct {
+func newWorkspaceEventLoopRouter(workspaceID string, vwsAPIExportName string) WorkspaceEventLoopRouterStruct {
 
 	res := WorkspaceEventLoopRouterStruct{
 		channel: make(chan workspaceEventLoopMessage),
 	}
 
-	internalStartWorkspaceEventLoopRouter(res.channel, workspaceID, defaultApplicationEventLoopFactory{})
+	internalStartWorkspaceEventLoopRouter(res.channel, workspaceID, defaultApplicationEventLoopFactory{
+		vwsAPIExportName: vwsAPIExportName,
+	})
 
 	return res
 }
@@ -276,14 +278,16 @@ type applicationEventQueueLoopFactory interface {
 }
 
 type defaultApplicationEventLoopFactory struct {
+	vwsAPIExportName string
 }
 
 // The default implementation of startApplicationEventQueueLoop is just a simple wrapper around a call to
 // StartApplicationEventQueueLoop
-func (defaultApplicationEventLoopFactory) startApplicationEventQueueLoop(ctx context.Context, gitopsDeplName string, gitopsDeplNamespace string,
+func (d defaultApplicationEventLoopFactory) startApplicationEventQueueLoop(ctx context.Context, gitopsDeplName string, gitopsDeplNamespace string,
 	workspaceID string, sharedResourceEventLoop *shared_resource_loop.SharedResourceEventLoop) chan eventlooptypes.EventLoopMessage {
 
-	res := application_event_loop.StartApplicationEventQueueLoop(ctx, gitopsDeplName, gitopsDeplNamespace, workspaceID, sharedResourceEventLoop)
+	res := application_event_loop.StartApplicationEventQueueLoop(ctx, gitopsDeplName, gitopsDeplNamespace, workspaceID,
+		sharedResourceEventLoop, d.vwsAPIExportName)
 
 	return res
 }
@@ -296,7 +300,7 @@ var _ applicationEventQueueLoopFactory = defaultApplicationEventLoopFactory{}
 //
 // If the resource is orphaned, or an error occurred, "" is returned.
 //
-//   See https://docs.google.com/document/d/1e1UwCbwK-Ew5ODWedqp_jZmhiZzYWaxEvIL-tqebMzo/edit#heading=h.8tiycl1h7rns for details.
+//	See https://docs.google.com/document/d/1e1UwCbwK-Ew5ODWedqp_jZmhiZzYWaxEvIL-tqebMzo/edit#heading=h.8tiycl1h7rns for details.
 func checkIfOrphanedGitOpsDeploymentSyncRun(ctx context.Context, event eventlooptypes.EventLoopMessage,
 	orphanedResources map[string]map[string]eventlooptypes.EventLoopEvent, log logr.Logger) string {
 

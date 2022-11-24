@@ -18,12 +18,13 @@ package appstudioredhatcom
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"reflect"
 	"strings"
 	"time"
 
-	appstudioshared "github.com/redhat-appstudio/managed-gitops/appstudio-shared/apis/appstudio.redhat.com/v1alpha1"
+	appstudioshared "github.com/redhat-appstudio/application-api/api/v1alpha1"
 	apibackend "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
@@ -248,15 +249,22 @@ func GenerateBindingGitOpsDeploymentName(binding appstudioshared.SnapshotEnviron
 
 	// If the length of the GitOpsDeployment exceeds the K8s maximum, shorten it to just binding+component
 	if len(expectedName) > 250 {
-		expectedName = binding.Name + "-" + componentName
+		expectedShortName := binding.Name + "-" + componentName
+
+		// If the length is still > 250
+		if len(expectedShortName) > 250 {
+			hashValue := sha256.Sum256([]byte(expectedName))
+			hashString := fmt.Sprintf("%x", hashValue)
+			return expectedShortName[0:180] + "-" + hashString
+		}
+		return expectedShortName
 	}
-	// TODO: GITOPSRVCE-183: Improve the logic here; it is not guaranteed that the updated name will be valid (plus add tests).
 
 	return expectedName
 
 }
 
-func generateExpectedGitOpsDeployment(component appstudioshared.ComponentStatus,
+func generateExpectedGitOpsDeployment(component appstudioshared.BindingComponentStatus,
 	binding appstudioshared.SnapshotEnvironmentBinding,
 	environment appstudioshared.Environment) (apibackend.GitOpsDeployment, error) {
 

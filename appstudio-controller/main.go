@@ -31,11 +31,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	applicationv1alpha1 "github.com/redhat-appstudio/application-service/api/v1alpha1"
-	gitopsdeploymentv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
-
+	applicationv1alpha1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
 	appstudioredhatcomcontrollers "github.com/redhat-appstudio/managed-gitops/appstudio-controller/controllers/appstudio.redhat.com"
-	appstudioshared "github.com/redhat-appstudio/managed-gitops/appstudio-shared/apis/appstudio.redhat.com/v1alpha1"
+	gitopsdeploymentv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	//+kubebuilder:scaffold:imports
@@ -51,7 +49,7 @@ func init() {
 	utilruntime.Must(applicationv1alpha1.AddToScheme(scheme))
 	// utilruntime.Must(managedgitopsv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(gitopsdeploymentv1alpha1.AddToScheme(scheme))
-	utilruntime.Must(appstudioshared.AddToScheme(scheme))
+	utilruntime.Must(applicationv1alpha1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 
