@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -286,6 +287,12 @@ type internalSharedDBConnectionPool struct {
 // NewSharedProductionPostgresDBQueries returns a connection to the database using go-pg's built-in connection pooling
 // functionality.
 func NewSharedProductionPostgresDBQueries(verbose bool) (DatabaseQueries, error) {
+
+	var dbClient AllDatabaseQueries
+
+	if os.Getenv("ENABLE_UNRELIABLE_DB") == "true" {
+		return &ChaosDBClient{InnerClient: dbClient}, nil
+	}
 
 	internalSharedDBEntity.mutex.Lock()
 	defer internalSharedDBEntity.mutex.Unlock()
