@@ -288,12 +288,6 @@ type internalSharedDBConnectionPool struct {
 // functionality.
 func NewSharedProductionPostgresDBQueries(verbose bool) (DatabaseQueries, error) {
 
-	var dbClient AllDatabaseQueries
-
-	if os.Getenv("ENABLE_UNRELIABLE_DB") == "true" {
-		return &ChaosDBClient{InnerClient: dbClient}, nil
-	}
-
 	internalSharedDBEntity.mutex.Lock()
 	defer internalSharedDBEntity.mutex.Unlock()
 
@@ -317,6 +311,10 @@ func NewSharedProductionPostgresDBQueries(verbose bool) (DatabaseQueries, error)
 			return nil, fmt.Errorf("unable to connect to database using shared function: %v", err)
 		}
 		internalSharedDBEntity.pools[mapKey] = dbQueries
+	}
+
+	if os.Getenv("ENABLE_UNRELIABLE_DB") == "true" {
+		return &ChaosDBClient{InnerClient: dbQueries}, nil
 	}
 
 	return dbQueries, nil
