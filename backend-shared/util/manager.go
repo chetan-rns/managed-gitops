@@ -50,6 +50,11 @@ func GetControllerManager(ctx context.Context, cfg *rest.Config, log *logr.Logge
 		return nil, fmt.Errorf("error adding apis.kcp.dev/v1alpha1 to scheme: %w", err)
 	}
 
+	if !IsRunningAgainstKCP() {
+		log.Info("Running GitOps Service against KCP is disabled - creating standard manager")
+		return ctrl.NewManager(cfg, opts)
+	}
+
 	apiExportClient, err := client.New(cfg, client.Options{Scheme: scheme})
 	apiExportClient = IfEnabledSimulateUnreliableClient(apiExportClient)
 	if err != nil {

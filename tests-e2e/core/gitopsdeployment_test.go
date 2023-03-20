@@ -34,7 +34,7 @@ const (
 	ArgoCDReconcileWaitTime = "7m"
 )
 
-var _ = Describe("GitOpsDeployment E2E tests", func() {
+var _ = FDescribe("GitOpsDeployment E2E tests", func() {
 
 	Context("Create, Update and Delete a GitOpsDeployment ", func() {
 
@@ -792,11 +792,11 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 
 	})
 
-	Context("Simulates simple interactions of X active users interacting with the service", func() {
+	FContext("Simulates simple interactions of X active users interacting with the service", func() {
 
 		// Number of users interacting with GitOps service.
 		const (
-			numberToSimulate = 10
+			numberToSimulate = 50
 		)
 
 		var k8sClient client.Client

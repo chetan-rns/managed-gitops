@@ -75,6 +75,9 @@ type ApplicationEventQueueLoop struct {
 	// WorkspaceID is the UID of the namespace
 	WorkspaceID string
 
+	// WorkspaceClient is a client for accessing GitOps service k8s resources.
+	WorkspaceClient client.Client
+
 	// SharedResourceEventLoop is a reference to the shared resource event loop
 	SharedResourceEventLoop *shared_resource_loop.SharedResourceEventLoop
 
@@ -90,6 +93,7 @@ type ApplicationEventQueueLoop struct {
 func StartApplicationEventQueueLoop(ctx context.Context, aeqlParam ApplicationEventQueueLoop) {
 
 	go applicationEventQueueLoop(ctx,
+		aeqlParam.WorkspaceClient,
 		aeqlParam.InputChan,
 		aeqlParam.GitopsDeploymentName,
 		aeqlParam.GitopsDeploymentNamespace,
@@ -105,6 +109,7 @@ func StartApplicationEventQueueLoop(ctx context.Context, aeqlParam ApplicationEv
 func startApplicationEventQueueLoopWithFactory(ctx context.Context, aeqlParam ApplicationEventQueueLoop, aerFactory applicationEventRunnerFactory) {
 
 	go applicationEventQueueLoop(ctx,
+		aeqlParam.WorkspaceClient,
 		aeqlParam.InputChan,
 		aeqlParam.GitopsDeploymentName,
 		aeqlParam.GitopsDeploymentNamespace,
@@ -117,7 +122,7 @@ func startApplicationEventQueueLoopWithFactory(ctx context.Context, aeqlParam Ap
 
 // applicationEventQueueLoop is the main function of the application event loop: it accepts messages from the
 // workspace event loop, creates runners, and passes them to runners.
-func applicationEventQueueLoop(ctx context.Context,
+func applicationEventQueueLoop(ctx context.Context, k8sClient client.Client,
 	input chan RequestMessage,
 	gitopsDeploymentName string, gitopsDeploymentNamespace string,
 	workspaceID string,
@@ -151,7 +156,7 @@ func applicationEventQueueLoop(ctx context.Context,
 	syncOperationEventRunnerShutdown := false
 
 	// Start the ticker, which will -- every X seconds -- instruct the GitOpsDeployment CR fields to update
-	startNewStatusUpdateTimer(ctx, input, vwsAPIExportName, log)
+	startNewStatusUpdateTimer(ctx, k8sClient, input, vwsAPIExportName, log)
 
 out:
 	for {
@@ -261,7 +266,7 @@ out:
 				// After we finish processing a previous status tick, start the timer to queue up a new one.
 				// This ensures we are always reminded to do a status update.
 				activeDeploymentEvent = nil
-				startNewStatusUpdateTimer(ctx, input, vwsAPIExportName, log)
+				startNewStatusUpdateTimer(ctx, k8sClient, input, vwsAPIExportName, log)
 
 			} else if eventLoopMessage.ReqResource == eventlooptypes.GitOpsDeploymentTypeName ||
 				eventLoopMessage.ReqResource == eventlooptypes.GitOpsDeploymentManagedEnvironmentTypeName {
@@ -369,7 +374,7 @@ out:
 
 // startNewStatusUpdateTimer will send a timer tick message to the application event loop in X seconds.
 // This tick informs the runner that it needs to update the status field of the Deployment.
-func startNewStatusUpdateTimer(ctx context.Context, input chan RequestMessage, vwsAPIExportName string,
+func startNewStatusUpdateTimer(ctx context.Context, k8sClient client.Client, input chan RequestMessage, vwsAPIExportName string,
 	log logr.Logger) {
 
 	// Up to 1 second of jitter
@@ -379,27 +384,27 @@ func startNewStatusUpdateTimer(ctx context.Context, input chan RequestMessage, v
 	statusUpdateTimer := time.NewTimer(deploymentStatusTickRate + jitter)
 
 	go func() {
-		var workspaceClient client.Client
-		var err error
+		// var workspaceClient client.Client
+		// var err error
 
 		// Keep trying to create k8s client, until we succeed
-		backoff := sharedutil.ExponentialBackoff{Factor: 2, Min: time.Millisecond * 200, Max: time.Second * 10, Jitter: true}
-		for {
-			workspaceClient, err = getk8sClient(vwsAPIExportName)
-			if err == nil {
-				break
-			} else {
-				backoff.DelayOnFail(ctx)
-			}
+		// backoff := sharedutil.ExponentialBackoff{Factor: 2, Min: time.Millisecond * 200, Max: time.Second * 10, Jitter: true}
+		// for {
+		// 	workspaceClient, err = getk8sClient(vwsAPIExportName)
+		// 	if err == nil {
+		// 		break
+		// 	} else {
+		// 		backoff.DelayOnFail(ctx)
+		// 	}
 
-			// Exit if the context is cancelled
-			select {
-			case <-ctx.Done():
-				log.V(sharedutil.LogLevel_Debug).Info("Deployment status ticker cancelled")
-				return
-			default:
-			}
-		}
+		// 	// Exit if the context is cancelled
+		// 	select {
+		// 	case <-ctx.Done():
+		// 		log.V(sharedutil.LogLevel_Debug).Info("Deployment status ticker cancelled")
+		// 		return
+		// 	default:
+		// 	}
+		// }
 
 		clusterName, _ := logicalcluster.ClusterFromContext(ctx)
 
@@ -411,7 +416,7 @@ func startNewStatusUpdateTimer(ctx context.Context, input chan RequestMessage, v
 					Request: reconcile.Request{
 						ClusterName: clusterName.String(),
 					},
-					Client: workspaceClient,
+					Client: k8sClient,
 				},
 				MessageType: eventlooptypes.ApplicationEventLoopMessageType_Event,
 			},
