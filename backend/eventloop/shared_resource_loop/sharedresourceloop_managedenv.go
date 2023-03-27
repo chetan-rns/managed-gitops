@@ -37,6 +37,7 @@ const (
 	ConditionReasonUnableToLocateContext            = "UnableToLocateContext"
 	ConditionReasonUnableToParseKubeconfigData      = "UnableToParseKubeconfigData"
 	ConditionReasonUnableToRetrieveRestConfig       = "UnableToRetrieveRestConfig"
+	ConditionReasonUnsupportedAPIURL                = "UnsupportedAPIURL"
 	KubeconfigKey                                   = "kubeconfig"
 )
 
@@ -73,6 +74,14 @@ func internalProcessMessage_ReconcileSharedManagedEnv(ctx context.Context, works
 		return newSharedResourceManagedEnvContainer(), err
 	}
 	if doesNotExist {
+		return newSharedResourceManagedEnvContainer(), nil
+	}
+
+	if strings.Contains(managedEnvironmentCR.Spec.APIURL, "?") || strings.Contains(managedEnvironmentCR.Spec.APIURL, "&") {
+
+		// TODO: JGW - Make sure this gets included after PR #397 is merged.
+		updateManagedEnvironmentConnectionStatus(&managedEnvironmentCR, ctx, workspaceClient, metav1.ConditionUnknown,
+			ConditionReasonUnsupportedAPIURL, "the API URL must not have ? or & values", log)
 		return newSharedResourceManagedEnvContainer(), nil
 	}
 
