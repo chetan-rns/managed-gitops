@@ -6,13 +6,11 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	"github.com/kcp-dev/logicalcluster/v2"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/shared_resource_loop"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 // All events that occur to a particular GitOpsDeployment CR, and any CRs (such as GitOpsDeploymentSyncRun) that reference
@@ -384,17 +382,34 @@ func startNewStatusUpdateTimer(ctx context.Context, k8sClient client.Client, inp
 	statusUpdateTimer := time.NewTimer(deploymentStatusTickRate + jitter)
 
 	go func() {
-		clusterName, _ := logicalcluster.ClusterFromContext(ctx)
+		var workspaceClient client.Client
+		var err error
+
+		// Keep trying to create k8s client, until we succeed
+		backoff := sharedutil.ExponentialBackoff{Factor: 2, Min: time.Millisecond * 200, Max: time.Second * 10, Jitter: true}
+		for {
+			workspaceClient, err = getk8sClient(vwsAPIExportName)
+			if err == nil {
+				break
+			} else {
+				backoff.DelayOnFail(ctx)
+			}
+
+			// Exit if the context is cancelled
+			select {
+			case <-ctx.Done():
+				log.V(sharedutil.LogLevel_Debug).Info("Deployment status ticker cancelled")
+				return
+			default:
+			}
+		}
 
 		<-statusUpdateTimer.C
 		tickMessage := RequestMessage{
 			Message: eventlooptypes.EventLoopMessage{
 				Event: &eventlooptypes.EventLoopEvent{
 					EventType: eventlooptypes.UpdateDeploymentStatusTick,
-					Request: reconcile.Request{
-						ClusterName: clusterName.String(),
-					},
-					Client: k8sClient,
+					Client:    workspaceClient,
 				},
 				MessageType: eventlooptypes.ApplicationEventLoopMessageType_Event,
 			},
@@ -402,6 +417,10 @@ func startNewStatusUpdateTimer(ctx context.Context, k8sClient client.Client, inp
 		}
 		input <- tickMessage
 	}()
+}
+
+func getk8sClient(apiExportName string) (client.Client, error) {
+	return eventlooptypes.GetK8sClientForServiceWorkspace()
 }
 
 // applicationEventRunnerFactory is used to start an application loop runner. It is a lightweight wrapper

@@ -49,7 +49,6 @@ type GitOpsDeploymentSyncRunReconciler struct {
 // move the current state of the cluster closer to the desired state.
 func (r *GitOpsDeploymentSyncRunReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 
-	ctx = sharedutil.AddKCPClusterToContext(ctx, req.ClusterName)
 	_ = log.FromContext(ctx)
 
 	rClient := sharedutil.IfEnabledSimulateUnreliableClient(r.Client)
