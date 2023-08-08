@@ -312,6 +312,8 @@ type ApplicationState struct {
 	ReconciledState string `pg:"reconciled_state"`
 
 	Conditions []byte `pg:"conditions"`
+
+	Application_status []byte `pg:"argocd_application_status"`
 }
 
 // DeploymentToApplicationMapping represents relationship from GitOpsDeployment CR in the namespace, to an Application table row

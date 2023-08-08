@@ -129,43 +129,50 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 			// 3a) ApplicationState doesn't exist: so create it
 
-			applicationState.Health = db.TruncateVarchar(string(app.Status.Health.Status), db.ApplicationStateHealthLength)
-			applicationState.Message = db.TruncateVarchar(app.Status.Health.Message, db.ApplicationStateMessageLength)
-			applicationState.Sync_Status = db.TruncateVarchar(string(app.Status.Sync.Status), db.ApplicationStateSyncStatusLength)
-			applicationState.Revision = db.TruncateVarchar(app.Status.Sync.Revision, db.ApplicationStateRevisionLength)
-			sanitizeHealthAndStatus(applicationState)
+			// applicationState.Health = db.TruncateVarchar(string(app.Status.Health.Status), db.ApplicationStateHealthLength)
+			// applicationState.Message = db.TruncateVarchar(app.Status.Health.Message, db.ApplicationStateMessageLength)
+			// applicationState.Sync_Status = db.TruncateVarchar(string(app.Status.Sync.Status), db.ApplicationStateSyncStatusLength)
+			// applicationState.Revision = db.TruncateVarchar(app.Status.Sync.Revision, db.ApplicationStateRevisionLength)
+			// sanitizeHealthAndStatus(applicationState)
 
-			// Get the list of resources created by deployment and convert it into a compressed YAML string.
-			var err error
-			applicationState.Resources, err = sharedutil.CompressObject(app.Status.Resources)
+			// // Get the list of resources created by deployment and convert it into a compressed YAML string.
+			// var err error
+			// applicationState.Resources, err = sharedutil.CompressObject(app.Status.Resources)
+			// if err != nil {
+			// 	log.Error(err, "unable to compress resource data into byte array.")
+			// 	return ctrl.Result{}, err
+			// }
+
+			// if app.Status.OperationState != nil {
+			// 	// Compress the Application OperationState and copy it.
+			// 	applicationState.OperationState, err = sharedutil.CompressObject(app.Status.OperationState)
+			// 	if err != nil {
+			// 		log.Error(err, "unable to compress operationState data into byte array.")
+			// 		return ctrl.Result{}, err
+			// 	}
+			// }
+
+			// // storeInComparedToFieldInApplicationState will read 'comparedTo' field of an Argo CD Application, and write the
+			// // correct value into 'applicationState'.
+			// reconciledState, err := storeInComparedToFieldInApplicationState(app, *applicationState)
+			// if err != nil {
+			// 	log.Error(err, "unable to store comparedToField in ApplicationState")
+			// 	return ctrl.Result{}, err
+			// }
+
+			// applicationState.ReconciledState = reconciledState
+
+			// if err := setApplicationConditions(applicationState, app.Status.Conditions); err != nil {
+			// 	log.Error(err, "failed to set Application conditions in ApplicationState DB")
+			// 	return ctrl.Result{}, err
+			// }
+
+			appStatus, err := sharedutil.CompressObject(app.Status)
 			if err != nil {
-				log.Error(err, "unable to compress resource data into byte array.")
 				return ctrl.Result{}, err
 			}
 
-			if app.Status.OperationState != nil {
-				// Compress the Application OperationState and copy it.
-				applicationState.OperationState, err = sharedutil.CompressObject(app.Status.OperationState)
-				if err != nil {
-					log.Error(err, "unable to compress operationState data into byte array.")
-					return ctrl.Result{}, err
-				}
-			}
-
-			// storeInComparedToFieldInApplicationState will read 'comparedTo' field of an Argo CD Application, and write the
-			// correct value into 'applicationState'.
-			reconciledState, err := storeInComparedToFieldInApplicationState(app, *applicationState)
-			if err != nil {
-				log.Error(err, "unable to store comparedToField in ApplicationState")
-				return ctrl.Result{}, err
-			}
-
-			applicationState.ReconciledState = reconciledState
-
-			if err := setApplicationConditions(applicationState, app.Status.Conditions); err != nil {
-				log.Error(err, "failed to set Application conditions in ApplicationState DB")
-				return ctrl.Result{}, err
-			}
+			applicationState.Application_status = appStatus
 
 			if errCreate := r.Cache.CreateApplicationState(ctx, *applicationState); errCreate != nil {
 				log.Error(errCreate, "unexpected error on writing new application state")
@@ -181,42 +188,42 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	// 4) ApplicationState already exists, so just update it.
 
-	applicationState.Health = db.TruncateVarchar(string(app.Status.Health.Status), db.ApplicationStateHealthLength)
-	applicationState.Message = db.TruncateVarchar(app.Status.Health.Message, db.ApplicationStateMessageLength)
-	applicationState.Sync_Status = db.TruncateVarchar(string(app.Status.Sync.Status), db.ApplicationStateSyncStatusLength)
-	applicationState.Revision = db.TruncateVarchar(app.Status.Sync.Revision, db.ApplicationStateRevisionLength)
-	sanitizeHealthAndStatus(applicationState)
+	// applicationState.Health = db.TruncateVarchar(string(app.Status.Health.Status), db.ApplicationStateHealthLength)
+	// applicationState.Message = db.TruncateVarchar(app.Status.Health.Message, db.ApplicationStateMessageLength)
+	// applicationState.Sync_Status = db.TruncateVarchar(string(app.Status.Sync.Status), db.ApplicationStateSyncStatusLength)
+	// applicationState.Revision = db.TruncateVarchar(app.Status.Sync.Revision, db.ApplicationStateRevisionLength)
+	// sanitizeHealthAndStatus(applicationState)
 
 	// Get the list of resources created by deployment and convert it into a compressed YAML string.
 	var err error
-	applicationState.Resources, err = sharedutil.CompressObject(app.Status.Resources)
+	applicationState.Application_status, err = sharedutil.CompressObject(app.Status)
 	if err != nil {
 		log.Error(err, "unable to compress resource data into byte array.")
 		return ctrl.Result{}, err
 	}
 
-	if app.Status.OperationState != nil {
-		applicationState.OperationState, err = sharedutil.CompressObject(app.Status.OperationState)
-		if err != nil {
-			log.Error(err, "unable to compress operationState into byte array.")
-			return ctrl.Result{}, err
-		}
-	}
+	// if app.Status.OperationState != nil {
+	// 	applicationState.OperationState, err = sharedutil.CompressObject(app.Status.OperationState)
+	// 	if err != nil {
+	// 		log.Error(err, "unable to compress operationState into byte array.")
+	// 		return ctrl.Result{}, err
+	// 	}
+	// }
 
-	// storeInComparedToFieldInApplicationState will read 'comparedTo' field of an Argo CD Application, and write the
-	// correct value into 'applicationState'.
-	reconciledState, err := storeInComparedToFieldInApplicationState(app, *applicationState)
-	if err != nil {
-		log.Error(err, "unable to store comparedToField in ApplicationState")
-		return ctrl.Result{}, err
-	}
+	// // storeInComparedToFieldInApplicationState will read 'comparedTo' field of an Argo CD Application, and write the
+	// // correct value into 'applicationState'.
+	// reconciledState, err := storeInComparedToFieldInApplicationState(app, *applicationState)
+	// if err != nil {
+	// 	log.Error(err, "unable to store comparedToField in ApplicationState")
+	// 	return ctrl.Result{}, err
+	// }
 
-	applicationState.ReconciledState = reconciledState
+	// applicationState.ReconciledState = reconciledState
 
-	if err := setApplicationConditions(applicationState, app.Status.Conditions); err != nil {
-		log.Error(err, "failed to set Application conditions in ApplicationState DB")
-		return ctrl.Result{}, err
-	}
+	// if err := setApplicationConditions(applicationState, app.Status.Conditions); err != nil {
+	// 	log.Error(err, "failed to set Application conditions in ApplicationState DB")
+	// 	return ctrl.Result{}, err
+	// }
 
 	if err := r.Cache.UpdateApplicationState(ctx, *applicationState); err != nil {
 
