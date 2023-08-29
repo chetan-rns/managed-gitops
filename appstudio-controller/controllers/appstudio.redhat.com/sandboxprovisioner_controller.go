@@ -63,7 +63,7 @@ type SandboxProvisionerReconciler struct {
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.13.0/pkg/reconcile
 func (r *SandboxProvisionerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := log.FromContext(ctx).
-		WithName(logutil.LogLogger_managed_gitops)
+		WithName(logutil.LogLogger_managed_gitops).WithValues("component", "sandboxProvisionerReconciler")
 
 	dtc := applicationv1alpha1.DeploymentTargetClaim{
 		ObjectMeta: metav1.ObjectMeta{
@@ -121,6 +121,8 @@ func (r *SandboxProvisionerReconciler) Reconcile(ctx context.Context, req ctrl.R
 			return ctrl.Result{}, err
 		}
 		logutil.LogAPIResourceChangeEvent(spaceRequest.Namespace, spaceRequest.Name, spaceRequest, logutil.ResourceCreated, log)
+
+		return ctrl.Result{}, nil
 	}
 
 	log.Info("A SpaceRequest for the DeploymentTargetClaim exists", "SpaceRequest.Name", spaceRequest.Name, "Namespace", spaceRequest.Namespace)
