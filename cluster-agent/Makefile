@@ -111,22 +111,22 @@ build: generate fmt vet ## Build manager binary.
 	CGO_ENABLED=0 GOOS=$(OS) GOARCH=$(ARCH) go build -o bin/manager main.go
 
 run: manifests generate fmt vet ## Run a controller from your host.
-	go run ./main.go --zap-log-level info --zap-time-encoding=rfc3339nano
+	DEV_ONLY_ALLOW_NON_TLS_CONNECTION_TO_POSTGRESQL=true go run ./main.go --zap-log-level info --zap-time-encoding=rfc3339nano
 # more on controller log level configuration: https://sdk.operatorframework.io/docs/building-operators/golang/references/logging/
 
 run-no-self-heal: manifests generate fmt vet ## Run a controller from your host.
-	SELF_HEAL_INTERVAL=0 KUBECONFIG=${WORKLOAD_KUBECONFIG} go run ./main.go --zap-log-level info --zap-time-encoding=rfc3339nano
+	DEV_ONLY_ALLOW_NON_TLS_CONNECTION_TO_POSTGRESQL=true SELF_HEAL_INTERVAL=0 KUBECONFIG=${WORKLOAD_KUBECONFIG} go run ./main.go --zap-log-level info --zap-time-encoding=rfc3339nano
 
 runexec: ## Run a controller from your host using exe in current folder
 ifeq (,$(wildcard ./main))
 runexec: manifests generate fmt vet
 	@echo Building and running cluster-agent
 	CGO_ENABLED=0 GOOS=$(OS) GOARCH=$(ARCH) go build ./main.go
-	main --zap-log-level info --zap-time-encoding=rfc3339nano
+	DEV_ONLY_ALLOW_NON_TLS_CONNECTION_TO_POSTGRESQL=true main --zap-log-level info --zap-time-encoding=rfc3339nano
 else
 runexec:
 	@echo Running cluster-agent using existing main executable.
-	 main --zap-log-level info --zap-time-encoding=rfc3339nano
+	 DEV_ONLY_ALLOW_NON_TLS_CONNECTION_TO_POSTGRESQL=true main --zap-log-level info --zap-time-encoding=rfc3339nano
 endif
 
 chaos-run: manifests generate fmt vet ## Chaos Engineering: Simulate a controller that restarts every ~33 seconds.
