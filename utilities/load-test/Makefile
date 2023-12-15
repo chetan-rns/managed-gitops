@@ -1,7 +1,7 @@
 
 .PHONY: test
 test: fmt vet
-	go test -v -count=1 -coverprofile=coverage.out `go list ./...`
+	go test -v -count=1 -coverprofile=coverage.out `go list ./gitops-service/...`
 
 .PHONY: lint
 lint:
